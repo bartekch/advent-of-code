@@ -4,7 +4,7 @@
 # What is the ID of the earliest bus you can take to the airport multiplied by the number of minutes you'll need to wait for that bus?
 
 
-input <- readLines("2020/inputs/input13.txt")
+input <- readLines("inputs/input13.txt")
 
 my_timestamp <- as.integer(input[1])
 
@@ -177,3 +177,47 @@ chinese64(as.integer64((buses - ts) %% buses), as.integer64(buses))
 # integer64
 # [1] 1001569619313439
 # success!
+
+
+
+
+
+
+
+# Search by sieving -------------------------------------------------------
+
+
+findTimestamp <- function(buses) {
+ ts <- which(!is.na(buses)) - 1
+ buses <- as.numeric(buses[!is.na(buses)])
+ ts <- (buses - ts) %% buses
+ 
+ ts <- ts[order(buses, decreasing = TRUE)]
+ buses <- buses[order(buses, decreasing = TRUE)]
+ 
+ pp <- buses[1]
+ x <- ts[1]
+ 
+ for (i in seq_len(length(buses) - 1)) {
+   progression <- seq(x, by = pp, length.out = 1e4)
+   x <- progression[which(progression %% buses[i + 1] == ts[i + 1])[1]]
+   if (length(x) == 0) stop("Too few iterations")
+   
+   pp <- pp * buses[i+1]
+ }
+ 
+ x
+}
+
+
+findTimestamp(c(17,NA,13,19))
+findTimestamp(c(67,7,NA,59,61))
+findTimestamp(c(67,NA,7,59,61))
+findTimestamp(c(67,7,59,61))
+findTimestamp(c(1789,37,47,1889))
+# all good
+
+buses <- as.integer(unlist(strsplit(input[[2]], ",")))
+res <- findTimestamp(buses)
+format(res, scientific = FALSE)
+# the same, no problem with integer overflow
