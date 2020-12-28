@@ -15,7 +15,7 @@ playCombat <- function(cards, maxit = 1e4) {
   while (all(sapply(cards, length) > 0) & i <= maxit) {
     pl1_card <- cards$pl1[1]
     pl2_card <- cards$pl2[1]
-    
+
     if (pl1_card > pl2_card) {
       cards$pl1 <- append(tail(cards$pl1, -1), c(pl1_card, pl2_card))
       cards$pl2 <- tail(cards$pl2, -1)
@@ -23,14 +23,14 @@ playCombat <- function(cards, maxit = 1e4) {
       cards$pl1 <- tail(cards$pl1, -1)
       cards$pl2 <- append(tail(cards$pl2, -1), c(pl2_card, pl1_card))
     }
-    
+
     i <- i + 1
   }
-  
+
   if (all(sapply(cards, length) > 0)) {
     print("maxit hit")
   }
-  
+
   cards
 }
 
@@ -55,7 +55,7 @@ cards_ex <- parseInput(ex_in)
 
 res_ex <- playCombat(cards_ex)
 sum(res_ex$pl2 * rev(seq_along(res_ex$pl2)))
-# 
+#
 
 
 # run
@@ -105,37 +105,37 @@ ggplot2::autoplot(bench)
 
 playRecursiveCombat <- function(cards, maxit = 1e4) {
   i <- 0
-  
+
   previous_games <- list()
-  
+
   while (all(sapply(cards, length) > 0) & i <= maxit) {
-    
+
     # check identical cards condition
     if (any(sapply(previous_games, identical, cards))) {
       return(list(winner = "pl1", cards = cards))
     } else {
       previous_games <- append(previous_games, list(cards))
     }
-    
-    
+
+
     # draw new card
     pl1_card <- head(cards$pl1, 1)
     cards$pl1 <- tail(cards$pl1, -1)
-    
+
     pl2_card <- head(cards$pl2, 1)
     cards$pl2 <- tail(cards$pl2, -1)
-    
-    
+
+
     # if both players have enough cards we play recursive
     # otherwise ordinary comparison
     if (length(cards$pl1) >= pl1_card && length(cards$pl2) >= pl2_card) {
       cards_cp <- cards
       cards_cp$pl1 <- head(cards_cp$pl1, pl1_card)
       cards_cp$pl2 <- head(cards_cp$pl2, pl2_card)
-      
+
       res <- playRecursiveCombat(cards_cp)
       winner <- res$winner
-      
+
     } else {
       if (pl1_card > pl2_card) {
         winner <- "pl1"
@@ -149,16 +149,16 @@ playRecursiveCombat <- function(cards, maxit = 1e4) {
     } else {
       cards$pl2 <- append(cards$pl2, c(pl2_card, pl1_card))
     }
-    
+
     i <- i + 1
   }
-  
-  
+
+
   if (all(sapply(cards, length) > 0)) {
     stop("maxit hit")
   }
 
-  
+
   return(list(winner = ifelse(length(cards$pl1) > 0, "pl1", "pl2"),
               cards = cards,
               it = i))
@@ -177,8 +177,8 @@ system.time({
   res <- playRecursiveCombat(cards_run)
 })
 
-#    user   system  elapsed 
-# 2115.982    2.758 2148.485 
+#    user   system  elapsed
+# 2115.982    2.758 2148.485
 
 # it takes A LOT of time
 res_run <- res$cards[[which(sapply(res$cards, length) > 0)]]
@@ -201,8 +201,8 @@ sum(res_ex_cpp * rev(seq_along(res_ex_cpp))) == sum(res_ex * rev(seq_along(res_e
 system.time({
   res_cpp <- playRecursiveCombatCpp(1e4, cards_run$pl1, cards_run$pl2, 1)
 })
-#    user  system elapsed 
-# 229.989   0.136 233.205 
+#    user  system elapsed
+# 229.989   0.136 233.205
 
 sum(res_cpp * rev(seq_along(res_cpp)))
 # 33647
@@ -212,7 +212,7 @@ sum(res_cpp * rev(seq_along(res_cpp)))
 # time improvement is around ten times, less then in the first part and less
 # then I expected, but my Rcpp code is probably rubbish
 
-# speed comparison on example 
+# speed comparison on example
 bench <- microbenchmark::microbenchmark(
   playRecursiveCombat(cards_ex),
   playRecursiveCombatCpp(1e4, cards_ex$pl1, cards_ex$pl2, 1),
@@ -231,3 +231,116 @@ ggplot2::autoplot(bench)
 ## Remark
 ## ALWAYS READ THE INSTRUCTIONS CAREFULLY!!!!!!
 
+
+
+
+### Shortcut implementation (inspired by reddit)
+# in a recursive game (where only winner matters, not the order of cards)
+# if player1 has the greatest card, he will surely win
+#
+
+playRecursiveCombat2 <- function(cards, maxit = 1e4, is_recursive = FALSE) {
+  i <- 0
+
+  # shortcut
+  if (is_recursive) {
+    if (max(c(cards$pl1, cards$pl2)) %in% cards$pl1) {
+      return(list(winner = "pl1", cards = cards))
+    }
+  }
+
+  previous_games <- list()
+
+  while (all(sapply(cards, length) > 0) & i <= maxit) {
+
+    # check identical cards condition
+    if (any(sapply(previous_games, identical, cards))) {
+      return(list(winner = "pl1", cards = cards))
+    } else {
+      previous_games <- append(previous_games, list(cards))
+    }
+
+
+    # draw new card
+    pl1_card <- head(cards$pl1, 1)
+    cards$pl1 <- tail(cards$pl1, -1)
+
+    pl2_card <- head(cards$pl2, 1)
+    cards$pl2 <- tail(cards$pl2, -1)
+
+
+    # if both players have enough cards we play recursive
+    # otherwise ordinary comparison
+    if (length(cards$pl1) >= pl1_card && length(cards$pl2) >= pl2_card) {
+      cards_cp <- cards
+      cards_cp$pl1 <- head(cards_cp$pl1, pl1_card)
+      cards_cp$pl2 <- head(cards_cp$pl2, pl2_card)
+
+      res <- playRecursiveCombat2(cards_cp, is_recursive = TRUE)
+      winner <- res$winner
+
+    } else {
+      if (pl1_card > pl2_card) {
+        winner <- "pl1"
+      } else {
+        winner <- "pl2"
+      }
+    }
+
+    if (winner == "pl1") {
+      cards$pl1 <- append(cards$pl1, c(pl1_card, pl2_card))
+    } else {
+      cards$pl2 <- append(cards$pl2, c(pl2_card, pl1_card))
+    }
+
+    i <- i + 1
+  }
+
+
+  if (all(sapply(cards, length) > 0)) {
+    stop("maxit hit")
+  }
+
+
+  return(list(winner = ifelse(length(cards$pl1) > 0, "pl1", "pl2"),
+              cards = cards,
+              it = i))
+}
+
+
+system.time({
+  res <- playRecursiveCombat2(cards_run)
+})
+#   user  system elapsed
+# 20.822   0.253  19.915
+res_run2 <- res$cards[[which(sapply(res$cards, length) > 0)]]
+sum(res_run2 * rev(seq_along(res_run2)))
+# 33647
+# MUCH faster
+
+
+
+
+### Rcpp implementation with shortcut
+
+Rcpp::sourceCpp("day22_2.cpp")
+
+# run
+system.time({
+  res_cpp <- playRecursiveCombat2Cpp(1e4, cards_run$pl1, cards_run$pl2, 1)
+})
+#  user  system elapsed
+# 2.039   0.004   2.059
+sum(res_cpp * rev(seq_along(res_cpp)))
+
+
+# speed comparison
+bench <- microbenchmark::microbenchmark(
+  playRecursiveCombat2(cards_run),
+  playRecursiveCombat2Cpp(1e4, cards_run$pl1, cards_run$pl2, 1),
+  times = 10
+)
+bench
+
+ggplot2::autoplot(bench)
+# time improvement is around ten times, similarly as in the version without shortcut
